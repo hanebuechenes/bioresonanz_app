@@ -1,33 +1,64 @@
+import 'dart:typed_data';
+import 'dart:math';
+import 'utils/wav_utils.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 class AudioService {
-  static final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer _playerLeft = AudioPlayer();
+  final AudioPlayer _playerRight = AudioPlayer();
 
-  /// Spielt eine Audiodatei aus den Assets ab
-  static Future<void> playTone(String assetPath) async {
-    try {
-      await _player.stop();
-      await _player.play(AssetSource(assetPath));
-    } catch (e) {
-      print('Audio playback error: $e');
+  double volume = 0.5;
+
+  // Ton generieren
+  Uint8List generateTone(double freq, double seconds) {
+    const sampleRate = 44100;
+    final samples = (sampleRate * seconds).toInt();
+    final buffer = BytesBuilder();
+
+    for (int i = 0; i < samples; i++) {
+      final sample = sin(2 * pi * freq * i / sampleRate);
+      final intSample = (sample * 32767).toInt();
+      buffer.addByte(intSample & 0xFF);
+      buffer.addByte((intSample >> 8) & 0xFF);
     }
+    return buffer.toBytes();
   }
 
-  /// Stoppt die Wiedergabe
-  static Future<void> stop() async {
-    try {
-      await _player.stop();
-    } catch (e) {
-      print('Stop error: $e');
-    }
+  // Stereo-Playback
+  Future<void> playStereo(double freqL, double freqR, {double seconds = 2.0}) async {
+    final toneL = generateWav(generateTone(freqL, seconds));
+    final toneR = generateWav(generateTone(freqR, seconds));
+
+    await _playerLeft.play(BytesSource(toneL), volume: volume, mode: PlayerMode.lowLatency, balance: -1.0);
+    await _playerRight.play(BytesSource(toneR), volume: volume, mode: PlayerMode.lowLatency, balance: 1.0);
   }
 
-  /// Gibt Ressourcen frei
-  static Future<void> dispose() async {
-    try {
-      await _player.dispose();
-    } catch (e) {
-      print('Dispose error: $e');
+  // Sweep-Generator
+  Future<void> playSweep(double startFreq, double endFreq, double durationSec) async {
+    const sampleRate = 44100;
+    final samples = (sampleRate * durationSec).toInt();
+    final buffer = BytesBuilder();
+
+    for (int i = 0; i < samples; i++) {
+      final t = i / samples;
+      final currentFreq = startFreq + (endFreq - startFreq) * t;
+      final sample = sin(2 * pi * currentFreq * i / sampleRate);
+      final intSample = (sample * 32767).toInt();
+      buffer.addByte(intSample & 0xFF);
+      buffer.addByte((intSample >> 8) & 0xFF);
     }
+
+    final wavData = generateWav(buffer.toBytes());
+    await _playerLeft.play(BytesSource(wavData), volume: volume);
+  }
+
+  Future<void> stopAll() async {
+    await _playerLeft.stop();
+    await _playerRight.stop();
+  }
+
+  void dispose() {
+    _playerLeft.dispose();
+    _playerRight.dispose();
   }
 }
