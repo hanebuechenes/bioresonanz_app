@@ -1,149 +1,135 @@
 import 'package:flutter/material.dart';
-import 'player_controller.dart';
+import 'audio_service.dart';
 
 void main() {
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: BioresonanzApp(),
-  ));
+  runApp(BioResonanzApp());
 }
 
-class BioresonanzApp extends StatefulWidget {
-  const BioresonanzApp({super.key});
-
+class BioResonanzApp extends StatelessWidget {
   @override
-  State<BioresonanzApp> createState() => _BioresonanzAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Bioresonanz App',
+      theme: ThemeData.dark(),
+      home: HomePage(),
+    );
+  }
 }
 
-class _BioresonanzAppState extends State<BioresonanzApp> {
-  final PlayerController _controller = PlayerController();
+class HomePage extends StatefulWidget {
+  @override
+  _HomePageState createState() => _HomePageState();
+}
 
-  bool isPlayingStereo = false;
-  bool isPlayingSweep = false;
+class _HomePageState extends State<HomePage> {
+  final AudioService _audioService = AudioService();
 
-  double volume = 0.5;
+  // Single Tone
+  double _frequency = 440;
+  double _duration = 1.0;
+  bool _loopTone = false;
 
-  double freqLeft = 440.0;
-  double freqRight = 440.0;
-
-  double sweepStart = 100.0;
-  double sweepEnd = 1000.0;
-  double sweepDuration = 5.0;
+  // Sweep
+  double _sweepStart = 400;
+  double _sweepEnd = 800;
+  double _sweepDuration = 5.0;
+  bool _loopSweep = false;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _audioService.dispose();
     super.dispose();
+  }
+
+  void _updateTone() {
+    _audioService.playTone(_frequency, _duration, loop: _loopTone);
+  }
+
+  void _updateSweep() {
+    _audioService.playSweep(_sweepStart, _sweepEnd, _sweepDuration, loop: _loopSweep);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.greenAccent,
-        title: const Text("Bioresonanz Generator"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ListView(
+      appBar: AppBar(title: Text('Bioresonanz App')),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            Text("Lautstärke: ${(volume * 100).toStringAsFixed(0)}%",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: volume,
-              min: 0,
-              max: 1,
-              onChanged: (v) => setState(() {
-                volume = v;
-                _controller.volume = volume;
-              }),
+            Text('Einfacher Ton', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+            _buildSlider('Frequenz (Hz)', 20, 2000, _frequency, (v) {
+              setState(() => _frequency = v);
+              _updateTone();
+            }),
+            _buildSlider('Dauer (s)', 0.1, 10, _duration, (v) {
+              setState(() => _duration = v);
+              _updateTone();
+            }),
+            Row(
+              children: [
+                Checkbox(
+                  value: _loopTone,
+                  onChanged: (v) {
+                    setState(() => _loopTone = v ?? false);
+                    _updateTone();
+                  },
+                ),
+                Text('Looping')
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text("Linker Kanal", style: TextStyle(color: Colors.greenAccent)),
-            Text("${freqLeft.toStringAsFixed(1)} Hz",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: freqLeft,
-              min: 20,
-              max: 20000,
-              onChanged: (v) => setState(() => freqLeft = v),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _audioService.stop(),
+              child: Text('Stop'),
             ),
-            const SizedBox(height: 20),
-            const Text("Rechter Kanal", style: TextStyle(color: Colors.greenAccent)),
-            Text("${freqRight.toStringAsFixed(1)} Hz",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: freqRight,
-              min: 20,
-              max: 20000,
-              onChanged: (v) => setState(() => freqRight = v),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isPlayingStereo ? Colors.red : Colors.green,
-              ),
-              icon: Icon(isPlayingStereo ? Icons.stop : Icons.play_arrow),
-              label: Text(isPlayingStereo ? "Stop Stereo" : "Play Stereo"),
-              onPressed: () async {
-                if (!isPlayingStereo) {
-                  setState(() => isPlayingStereo = true);
-                  await _controller.playStereo(freqLeft, freqRight);
-                  setState(() => isPlayingStereo = false);
-                } else {
-                  await _controller.stop();
-                  setState(() => isPlayingStereo = false);
-                }
-              },
-            ),
-            const Divider(color: Colors.white, height: 40),
-            const Text("Sweep Generator", style: TextStyle(color: Colors.greenAccent)),
-            Text("Startfrequenz: ${sweepStart.toStringAsFixed(1)} Hz",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: sweepStart,
-              min: 10,
-              max: 10000,
-              onChanged: (v) => setState(() => sweepStart = v),
-            ),
-            Text("Endfrequenz: ${sweepEnd.toStringAsFixed(1)} Hz",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: sweepEnd,
-              min: 10,
-              max: 10000,
-              onChanged: (v) => setState(() => sweepEnd = v),
-            ),
-            Text("Dauer: ${sweepDuration.toStringAsFixed(1)} s",
-                style: const TextStyle(color: Colors.white)),
-            Slider(
-              value: sweepDuration,
-              min: 1,
-              max: 30,
-              onChanged: (v) => setState(() => sweepDuration = v),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.multitrack_audio),
-              label: Text(isPlayingSweep ? "Stop Sweep" : "Start Sweep"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isPlayingSweep ? Colors.red : Colors.blue,
-              ),
-              onPressed: () async {
-                if (!isPlayingSweep) {
-                  setState(() => isPlayingSweep = true);
-                  await _controller.playSweep(sweepStart, sweepEnd, sweepDuration);
-                  setState(() => isPlayingSweep = false);
-                } else {
-                  await _controller.stop();
-                  setState(() => isPlayingSweep = false);
-                }
-              },
+            Divider(height: 40),
+            Text('Sweep', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+            _buildSlider('Start-Frequenz (Hz)', 20, 2000, _sweepStart, (v) {
+              setState(() => _sweepStart = v);
+              _updateSweep();
+            }),
+            _buildSlider('End-Frequenz (Hz)', 20, 2000, _sweepEnd, (v) {
+              setState(() => _sweepEnd = v);
+              _updateSweep();
+            }),
+            _buildSlider('Dauer (s)', 0.1, 20, _sweepDuration, (v) {
+              setState(() => _sweepDuration = v);
+              _updateSweep();
+            }),
+            Row(
+              children: [
+                Checkbox(
+                  value: _loopSweep,
+                  onChanged: (v) {
+                    setState(() => _loopSweep = v ?? false);
+                    _updateSweep();
+                  },
+                ),
+                Text('Looping')
+              ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSlider(String label, double min, double max, double value, ValueChanged<double> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$label: ${value.toStringAsFixed(2)}'),
+        Slider(
+          min: min,
+          max: max,
+          value: value,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }

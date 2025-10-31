@@ -1,21 +1,16 @@
 name: bioresonanz_app
-description: Eine Bioresonanz-Frequenzgenerator-App
-publish_to: 'none'
+description: Frequenzgenerator App
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  audioplayers: ^6.0.0
+  audioplayers: ^6.5.1
+  flutter_lints: ^6.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/
